@@ -234,7 +234,22 @@ More detail here, to not worry about yet. https://ggplot2.tidyverse.org/referenc
 
 - Can you make a boxplot that shows the price percent depending on fruity?
 
+```{r}
+price <- ggplot(candy_rankings) +
+  aes(x = fruity, y = pricepercent) +
+  geom_boxplot()
+price
+```
+
 2.  Are sweeter candies more expensive? Do the candies with higher sugarpercent have higher winpercent? Plot this relationship.
+
+```{r}
+expensive <- ggplot(candy_rankings) +
+  aes(x = sugarpercent, y = pricepercent) +
+  geom_point() +
+  geom_smooth(method = "lm")
+expensive
+```
 
 ## PRETTY TIME!
 
@@ -245,17 +260,17 @@ Reference: bit.ly/colors-r
 You can change the color in the geom argument. Test out how it works on different geoms!
 
 ```{r}
-ggplot() +  
-  aes(x = ) + 
-  geom_bar(color = '', fill = ) 
+ggplot(candy_rankings) +  
+  aes(x = chocolate) + 
+  geom_bar(color = 'darkblue', fill = 'coral') 
 ```
 
 If you want the color to reflect another variable, for example, if there is fruit in the candy too, then you make it a **mapped aesthetic**, or one that refers to some data to assign a visual. In this case, you place the **color** or **fill** argument **inside aes().**
 
 ```{r}
-ggplot() +  
-  aes(x = , fill = ) + 
-  geom_bar(position = ) 
+ggplot(candy_rankings) +  
+  aes(x = chocolate, fill = fruity) + 
+  geom_bar(position = position_dodge()) 
 ```
 
 ### Challenge question: what proportion of candies have BOTH chocolate and caramel?
