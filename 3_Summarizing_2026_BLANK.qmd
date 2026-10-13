@@ -50,32 +50,44 @@ library(tidyverse)
 ### Example using summarize to make a nice summary table of some old owl limpet data:
 
 ```{r}
-Size_summary <-  %>% 
-  group_by() 
-  summarize(), # mean 
-            sd_size = ,  # standard deviation
-            n = , # count
-            se_size =  # standard error
-  mutate_at(), # bonus line to reduce digits
-            .funs = ) 
+Size_summary <- CCdata_tidy %>% 
+  group_by(Impact, Year, Season, Survey_Date) |> 
+  summarize(mean_size = mean(Size, na.rm = TRUE), # mean 
+            sd_size = sd(Size, na.rm = TRUE),  # standard deviation
+            n = n(), # count
+            se_size = sd_size/sqrt(n)) |>  # standard error
+  mutate_at(vars(mean_size, sd_size, se_size), # bonus line to reduce digits
+            .funs = round, 2) 
 
 Size_summary %>% 
-  select() 
-  knitr
+  select(-Survey_Date) |>  
+  knitr::kable()
 ```
 
 #### Example creating a plot from that summary data:
 
 ```{r}
-Size_summary  + 
-  aes(x = , y = , fill = ) + 
+Size_summary |> ggplot() + 
+  aes(x = as.factor(Survey_Date), y = mean_size, fill = Impact) + 
 #  geom_point(position = position_dodge(0.9)) +
-geom_col() +
-  geom_errorbar(aes(, 
-                    ), 
-                position = , 
-                width = 
+geom_col(position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean_size - se_size,
+                    ymax = mean_size + se_size), 
+                position = position_dodge(0.9), 
+                width = 0.2
                 )
+```
+
+```{r}
+Size_summary |> ggplot() + 
+  aes(x = as.factor(Survey_Date), y = mean_size, color = Impact ) + 
+  #  geom_point(position = position_dodge(0.9)) +
+  geom_point(position = position_dodge()) +
+  geom_errorbar(aes(ymin = mean_size - se_size,
+                    ymax = mean_size + se_size), 
+                position = position_dodge(0), 
+                width = 0.2
+  )
 ```
 
 #### Beyond the summary stats: frequency distributions
@@ -83,10 +95,14 @@ geom_col() +
 Boiling it down to the mean and standard deviation really loses a lot of information though. It's always good to look at the histogram/distribution to get a better sense of what's going on. Let's look back at just that one histogram.
 
 ```{r}
-CC_sp19 <-
-  filter(Season ==  Year == Impact == )
+CC_sp19 <- CCdata_tidy |> 
+  filter(Season == "Spring" & Year == 2019 & Impact == "High" )
 
 CC_sp19 %>%
+  ggplot() +
+  aes(x = Size) +
+  geom_histogram(aes(y = ..density..)) +
+  coord_flip() #can invert the graph 90 degree
   
 ```
 
@@ -113,6 +129,9 @@ What observations can we make about the distribution of this data?
 ```{r many histograms}
 CCdata_tidy %>%
   ggplot() +
+  aes(x = Size) +
+  geom_histogram()+ 
+  facet_wrap(Survey_Date~Impact) #make seprate histogram based on
   
 
 
@@ -137,11 +156,13 @@ How do we assess?
 Visual:
 
 ```{r}
-CC_sp19 <-  %>%
-  filter()
+CC_sp19 <- CCdata_tidy |> 
+  filter(Season == "Spring" & Year == 2019 & Impact == "High" )
 
 CC_sp19 %>%
   ggplot() +
+  aes(x = Size) +
+  geom_histogram(aes(y = ..density..))
   
 ```
 
@@ -149,10 +170,10 @@ CC_sp19 %>%
 
 ```{r}
 # here's one function from Base R
-qqnorm()
+qqnorm(CC_sp19$Size)
 
 # And another from the car package that has 95% confidence intervals
-car::qqPlot()
+car::qqPlot(CC_sp19$Size)
 ```
 
 Next week, we will start learning about statistical tests which can quantify and assign a probability to how closely your data fits a particular type of distribution.
