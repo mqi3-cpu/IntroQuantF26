@@ -33,6 +33,10 @@ load(file = "Data/SizeData_2022_2025.Rdata")
 SizeData_2022_2025
 ```
 
+```{r}
+view(SizeData_2022_2025)
+```
+
 ## **Part 1: Data Exploration**
 
 ### 1.1 What does the distribution of limpet sizes we measured at all sites look like? Make some histograms.
@@ -42,7 +46,12 @@ Start with: `SizeData_2022_2025`
 Make a histogram with all the data.
 
 ```{r}
-ggplot(SizeData_2022_2025) +
+ggplot(SizeData_2022_2025) + 
+  aes(x = shell_length_mm) + 
+  geom_histogram() + 
+  labs(x = "Shell Length (mm)",
+       title = "Distribution of limpet sizes measured at all sites")
+  
 
 ```
 
@@ -50,6 +59,9 @@ Make a histogram with a `facet_wrap()` to separate the data from each site and y
 
 ```{r}
 ggplot(SizeData_2022_2025) +
+  aes(x = shell_length_mm) +
+  geom_histogram() + 
+  facet_wrap(vars(site))
 
 ```
 
@@ -57,6 +69,7 @@ We know our minimum size cut-off varied in different years of the surveys, and s
 
 ```{r}
 SizeData_2022_2025 <- SizeData_2022_2025 |> 
+  filter(shell_length_mm )
 ```
 
 ### 1.2 How long were the transects at each site?
