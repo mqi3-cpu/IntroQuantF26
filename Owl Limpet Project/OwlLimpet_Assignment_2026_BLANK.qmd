@@ -35,6 +35,7 @@ SizeData_2022_2025
 
 ```{r}
 view(SizeData_2022_2025)
+#show data sheet in another tab
 ```
 
 ## **Part 1: Data Exploration**
@@ -52,7 +53,9 @@ ggplot(SizeData_2022_2025) +
   labs(x = "Shell Length (mm)",
        title = "Distribution of limpet sizes measured at all sites")
   
-
+#making plots requires ggplot(data) and set the axis with aes()
+# geom_xxx() represents the type of plot
+# labs() give labels on the plot
 ```
 
 The distribution of limpet shell lengths is right-skewed. Most limpets have shell lengths between approximately 20 and 40 mm, while the mean is likely greater than the median because these larger values pull the mean upward.
@@ -65,7 +68,7 @@ ggplot(SizeData_2022_2025) +
   geom_histogram() + 
   facet_wrap(vars(site))+
   labs(x = "Shell Length (mm)")
-
+# facet_wrap() makes seperated plots for each variable
 ```
 
 The distribution of limpet shell lengths differs among sites. Shaws Cove has many observations concentrated at relatively small shell lengths, mostly around 20–35 mm. Heisler Park has a broader distribution, with shell lengths extending to larger values. Treasure Cove appears to have larger shell lengths overall, with observations spread across a wider range. Corona del Mar has a relatively low number of count.
@@ -75,6 +78,7 @@ We know our minimum size cut-off varied in different years of the surveys, and s
 ```{r}
 SizeData_2022_2025 <- SizeData_2022_2025 |> 
   filter(shell_length_mm >= 15)
+#use filter() to select the data we want
 ```
 
 ### 1.2 How long were the transects at each site?
@@ -116,7 +120,7 @@ TransectLengths |> ggplot() +
   aes(x = site, y = transect_length_m) +
   geom_boxplot() +
   geom_point(color = "red")
-
+# plotting 2 types of plot together and change color for the points
   
   
 ```
@@ -163,6 +167,7 @@ For the population density analysis, we will analyze data from Shaws Cove, Heisl
 ```{r}
 No_CDM_Sizes <- SizeData_2022_2025 |>  
   filter(site %in% c("Shaws Cove", "Heisler Park", "Treasure Cove"))
+#select a subset from all sites with site %in% c()
 #Can also use filter(site != "Corona del Mar") for this case
 ```
 
@@ -177,17 +182,17 @@ No_CDM_Sizes
 # How many did we measure total, across both sites?
 No_CDM_Sizes |> 
   filter(site %in% c("Shaws Cove", "Heisler Park")) |> 
-  nrow()
+  nrow() #number of rows, which represents how many limpets are measured
 
 ## How many did we measure at each site? 
 No_CDM_Sizes |>
   filter(site %in% c("Shaws Cove", "Heisler Park")) |> 
-  count(site)
+  count(site) #number of limpets for each site
 
 # How many did we measure in each transect? 
 No_CDM_Sizes |> 
   filter(site %in% c("Shaws Cove", "Heisler Park")) |> 
-  count(site, transect_num)
+  count(site, transect_num) #number of limpets for each transect for each site
 ```
 
 #### 2.2 What was the limpet density (i.e., limpets per square meter) for each transect?
@@ -200,8 +205,11 @@ Limpet_Density <- No_CDM_Sizes |>
   summarise(
     n_limpets = n(),
     transect_length_m = first(transect_length_m),
+    #only consider the first transect_length_m if there's mulitple limpets for the same transect
+    .groups = "drop_last"
   ) |> 
   mutate(density = n_limpets / (transect_length_m * 2))
+#mutate() is used to make a new colum
   
 
 
@@ -224,7 +232,7 @@ Limpet_Density |>
     n = n(),
     se_density = sd_density / sqrt(n)
   )
-
+#equations for mean, standard deviation, and standard error
 
 ```
 
@@ -241,7 +249,7 @@ LimpetPopSummary <- Limpet_Density |>
     se_density = round(sd_density / sqrt(n),1)
   ) 
 
-
+#round(calculation result, number of decimal place)
   
   
   
@@ -259,6 +267,7 @@ Boxplot, using the `Limpet_density` object, using fill for year. Label the Y-axi
 ```{r}
 Limpet_Density |> ggplot() + 
   aes(x = site, y = density, fill = year)+
+  #assign data from different years different colors
   geom_boxplot()+
   labs(
     x = "Site",
@@ -273,12 +282,14 @@ A column plot with errorbars, and fill = year, using your new `LimpetPopSummary`
 ```{r}
 LimpetPopSummary |> ggplot()+
   aes(x = site, y = mean_density, fill = year) +
-  geom_col(position = "dodge") +
+  geom_col(position = "dodge") + #make data from different years side by side
   geom_errorbar(
     aes(ymin = mean_density - se_density, 
-        ymax = mean_density + se_density), 
+        ymax = mean_density + se_density),
+    #equations for error bars
                 position = position_dodge(0.9), 
-                width = 0.2
+                width = 0.2 
+    #adjust the position and width for the error bar
   ) + 
   labs(
     x = "Site",
@@ -294,7 +305,8 @@ A `geom_point()` or `geom_jitter()`plot to visualize individual transect density
 ```{r}
 Limpet_Density |> ggplot() + 
   aes(x = site, y = density, color = year) +
-  geom_jitter(width = 0.15)+
+  geom_jitter(width = 0.15)+ 
+  #make the points seperate from each other a little bit to avoid overlap
   labs(
     x = "Site",
     y = "Limpets per square meter",
@@ -337,7 +349,8 @@ Limpet_Density |>
   summarise(
     n = n(),
     mean_density = mean(density, na.rm = TRUE),
-    sd_density = sd(density, na.rm = TRUE)
+    sd_density = sd(density, na.rm = TRUE),
+    .groups = "drop_last"
   )
 ```
 
@@ -352,7 +365,7 @@ ShawsHeislerDensity <- Limpet_Density |>
 # or site %in% c("Heisler Park", "Shaws Cove")
 
 t.test(density ~ site, data = ShawsHeislerDensity)
-
+#t.test(response ~ preditor, from which data)
 ```
 
 Explain the results of this t-test. Are you surprised by this result, given the figure you made above? Why do you think the results are what they are?
@@ -558,7 +571,7 @@ HS_impact <- SizeData_2022_2025 |>
     impact = ifelse(
       site == "Heisler Park", "High (Heisler Park)", "Low (Shaws Cove)"
     )
-  )
+  ) #make a new column for high impact and low impact. In this question, Heisler Park is the high impact site, so the site other than Heisler Park is the low impat site.
 
 HS_Summary <- HS_impact |> 
   group_by(impact) |> 
@@ -673,6 +686,7 @@ Explore the relationship between mass_g, and area_mm2 using scatter plots.
 All_Territories_area_mass |> 
   ggplot() + 
   aes(x = mass_g, y = area_mm2) +
+  #mm^2, the "^" is a function, cannot be used in naming
   geom_point() + 
   geom_smooth(method = "lm", se = FALSE) +
   labs(
@@ -696,7 +710,7 @@ All_Territories_area_mass |>
     title = "The Relationship between Limpet Size and Territory Size"
   )
 
-## Scatter plot with site mapped to color, One regression line
+## Scatter plot with site mapped to color, One regression line for all
 All_Territories_area_mass |>
   ggplot() + 
   aes(x = mass_g, y = area_mm2, color = site) +
@@ -732,6 +746,7 @@ All_Territories_area_mass |>
   ggplot() + 
   aes(x = mass_g, y = area_mm2, color = site,) +
   geom_point(alpha = 0.5, size = 1) + 
+  #modified the transparency and size of points 
   geom_smooth(method = "lm", se = FALSE,  color = "black") +
   facet_wrap(~ habitat) +
   labs(
@@ -754,12 +769,14 @@ The scatter plots suggest a positive relationship between limpet body mass and t
 linear_model <- lm(  
   log(area_mm2) ~ mass_g,
   data = All_Territories_area_mass)
+#log-transformed the independent variable
 
 plot(linear_model)
 
 linear_model <- lm(  
   log(area_mm2) ~ log(mass_g),
   data = All_Territories_area_mass)
+#log-transformed both
 
 plot(linear_model)
 ```
@@ -793,6 +810,7 @@ log_model <- lm(log(area_mm2) ~ log(mass_g),
   
 plot(log_model, which = 1)
 plot(log_model, which = 2)
+#only display residuals and Q-Q plots
 ```
 
 After log-transforming both body mass and territory area, the positive linear relationship appears stronger. Larger limpets tend to have larger territories, although there is still substantial variation among observations. The transformation appears to improve the linearity and consistency of the residuals, but the Q-Q plot still shows some deviations at the tails, so some assumptions may not be perfectly satisfied.
@@ -804,6 +822,7 @@ log_model <- lm(log(area_mm2) ~ log(mass_g),
                 data = All_Territories_area_mass)
 
 coef(log_model)
+#calculating regression coefficients
 ```
 
 **The formula for the best fit line can be extracted from the model summary. The two values in the Estimate column are the coefficients - (Intercept) gives the y-intercept, and the variable gives the slope.**
