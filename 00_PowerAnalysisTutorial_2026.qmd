@@ -152,6 +152,14 @@ Experiments with higher sample sizes are able to detect smaller differences (i.e
 However, larger sample sizes in ecological experiments can be a lot of work, space, and expense, all of which may be limited, especially in conservation projects. What was our sample size at Treasure Cove?
 
 ```{r}
+install.packages("patchwork")
+library(patchwork)
+install.packages("janitor")
+library(janitor)
+#I added this
+```
+
+```{r}
 # sample size at each location within TC
 location_n_TC <- All_Size_Data |>
   group_by(site) |>
@@ -354,6 +362,17 @@ pwr.t.test(
 )
 
 # our experiment was so overpowered that R just rounded it to 1. 
+
+```
+
+```{r}
+pwr.t.test(
+  n = 187,
+  d = 0.9599906,
+  sig.level = 0.05,
+  power = NULL,
+  type = "two.sample"
+)
 
 ```
 
