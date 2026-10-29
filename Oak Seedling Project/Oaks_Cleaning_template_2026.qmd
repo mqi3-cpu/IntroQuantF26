@@ -37,6 +37,7 @@ SPAD_Data_Raw <-
   read_excel("Oak Data Entry MCRS Field Trip.xlsx", 
              sheet = "SPAD", 
              na = "NA")
+
 ```
 
 **Amy gives the gift of importing the LICOR objects for you:**
