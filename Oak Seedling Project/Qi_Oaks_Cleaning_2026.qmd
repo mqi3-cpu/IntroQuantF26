@@ -141,7 +141,89 @@ In this section we will look at and clean up each of the data sets you identifie
 You may be either examining `SPAD_Data_Raw`, `Height_Data_Raw`, `LICOR_Data_Raw`, or `Moist_Data_Raw` for your ANOVA question. Examine your data set using the diagnostic functions I've given you above in the How to Examine and Clean Data section.
 
 ```{r}
+Height_Data <- Height_Data_Raw |> 
+  #only select alive seedlings for the four treatments mentioned in the instruction.
+  filter(
+    Dead_Alive == "Alive", 
+    Seedling_Ht_cm > 0,
+    Treatment %in% c("AC", "DT", "OS","NR")
+  ) |> 
+  mutate(
+    Treatment = factor(Treatment)
+    #make a new column for the selected treatments
+  )
+Height_Data |> 
+  count(Treatment)
+#check how many alive seedlings are in each group
 
+Height_Data |> 
+  count(Block, Tag_Num, Sapling_AB_etc) |> 
+  filter(n > 1)
+#make sure no duplicated individuals
+
+Height_Data
+```
+
+```{r}
+ggplot(Height_Data) +
+  aes(x = Treatment, y = Seedling_Ht_cm) +
+  geom_boxplot() +
+  labs(
+    title = "Seedling Height Across Habitat Treatments",
+    x = "Treatment",
+    y = "Seedling Height (cm)"
+  ) 
+```
+
+```{r}
+#one-way ANOVA
+Height_ANOVA <- aov(Seedling_Ht_cm ~ Treatment, data = Height_Data)
+summary(Height_ANOVA)
+#plot of Residuals vs. Fitted values. Homogeneity of variance
+plot(Height_ANOVA, which = 1)
+#Q-Q plot for normailty
+plot(Height_ANOVA, which = 2)
+
+#Shapiro-Wilk test for testing normality. Very small p-value, indicating not normally distributed
+shapiro.test(Height_ANOVA$residuals)
+
+# Bartlett Test of Homogeneity of Variances
+bartlett.test(Seedling_Ht_cm ~ Treatment, data = Height_Data)
+
+#Thukey post hoc test for results between each treatment
+TukeyHSD(Height_ANOVA)
+
+##I performed a one-way ANOVA to examine differences in seedling height among the four treatments. However, the Shapiro-Wilk test and Q-Q plot suggested that the residuals deviated from normality. Bartlett's test also indicated unequal variances among treatments. Therefore, the assumptions of a standard one-way ANOVA may not be fully met, and the results should be interpreted with caution.
+```
+
+```{r}
+#curious about the number of dead seedlings for each groups
+Height_Death <- Height_Data_Raw |> 
+  #only select dead seedlings for the four treatments mentioned in the instruction.
+  filter(
+    Dead_Alive == "Dead", 
+    Seedling_Ht_cm == 0,
+    Treatment %in% c("AC", "DT", "OS","NR"),
+    !is.na(Dead_Alive)
+  ) |> 
+  mutate(
+    Treatment = factor(Treatment)
+    #make a new column for the selected treatments
+  )
+
+Height_Death |> 
+  count(Treatment)
+#check how many dead seedlings are in each group
+
+Height_Death
+
+#count number of dead or alive seedlings for each treatment
+Death_Alive <- Height_Data_Raw |>
+  filter(Treatment %in% c("AC", "DT", "OS", "NR"),
+         !is.na(Dead_Alive)) |>
+  count(Treatment, Dead_Alive)
+
+Death_Alive
 ```
 
 In this next chunk, generate a cleaned data set following the example below. As you examine your raw data and find things to fix, add a #Note to create a list of things to fix up. You can then use pipes and write code to fix each thing in your checklist. This is also where if you identified `filters` or data computations in your Hypothesis worksheet (e.g., choose only one species), you can apply those.
@@ -168,12 +250,94 @@ Repeat the steps you took for your ANOVA data for your second data set of choice
 
 ```{r}
 # View data set
+
+# check relevant columns
+LICOR_Data_Raw |>
+  select(contains("gsw")) |>
+  summary()
+
+Moist_Data_Raw |>
+  select(contains("VWC")) |>
+  summary()
 ```
 
 ```{r}
-Data <- _Raw |> 
-   
-  #Things to Fix
+# Inspect soil moisture records
+Moist_Data_Raw |>
+  select(Date, Block, Treatment,
+         VWC1_perc, VWC2_perc, VWC3_perc)
+```
+
+```{r}
+#clean soil moisture data
+Moist_Data <- Moist_Data_Raw |>
+  mutate(
+    #convert to numerical 
+    VWC1_perc = as.numeric(VWC1_perc),
+    VWC2_perc = as.numeric(VWC2_perc),
+    VWC3_perc = as.numeric(VWC3_perc)
+  ) |>
+  #remove "NA"
+  filter(!is.na(VWC1_perc),
+         !is.na(VWC2_perc),
+         !is.na(VWC3_perc)) |>
+  mutate(
+    #calculate mean between VWC1_perc, VWC2_perc, VWC3_perc
+    VWC = rowMeans(
+      across(c(VWC1_perc, VWC2_perc, VWC3_perc))
+    )
+  )
+
+
+Moist_Data
+#inspect soil moisture
+summary(Moist_Data$VWC)
+nrow(Moist_Data)
+```
+
+```{r}
+#number of unique block + treatment combinations
+Moist_Data |>
+  count(Block, Treatment) |>
+  nrow()
+
+Height_Data |>
+  count(Block, Treatment) |>
+  nrow()
+
+#average seedling height for each block + treatment
+Height_Summary <- Height_Data |>
+  group_by(Block, Treatment) |>
+  summarise(
+    Mean_Height = mean(Seedling_Ht_cm, na.rm = TRUE),
+    .groups = "drop"
+  )
+Height_Summary
+# average soil moisture for each block + treatment
+Moist_Summary <- Moist_Data |>
+  group_by(Block, Treatment) |>
+  summarise(
+    Mean_VWC = mean(VWC, na.rm = TRUE),
+    .groups = "drop"
+  )
+Moist_Summary
+# match the two datasets
+Oak_Regression <- inner_join(
+  Moist_Summary,
+  Height_Summary,
+  by = c("Block", "Treatment")
+)
+
+# check the number of matched observations
+nrow(Oak_Regression)
+
+```
+
+```{r}
+Oak_LM <- lm(Mean_Height ~ Mean_VWC, data = Oak_Regression)
+summary(Oak_LM)
+
+#A linear regression was used to examine the relationship between mean soil moisture and mean seedling height across 18 Block-Treatment combinations. The relationship was negative but not statistically significant (F = 1.36, p = 0.260, R-squared = 0.078). Mean soil moisture explained approximately 7.8% of the variation in mean seedling height. Therefore, there is no linear relationship between the two variables.
 ```
 
 ## Exploratory Data Analysis
@@ -193,5 +357,44 @@ Not sure where to start?
 Go for it!
 
 ```{r}
+ggplot(Height_Data) +
+  aes(x = Treatment, y = Seedling_Ht_cm) +
+  geom_boxplot(outlier.shape = NA) +
+  geom_jitter(width = 0.12, alpha = 0.6) +
+  labs(
+    title = "Seedling Height Across Habitat Treatments",
+    x = "Treatment",
+    y = "Seedling Height (cm)"
+  )
+```
 
+```{r}
+ggplot(Death_Alive) +
+  aes(x = Treatment, y = n, fill = Dead_Alive) +
+  geom_col(position = "fill") +
+  labs(
+    title = "Seedling Survival Across Habitat Treatments",
+    x = "Treatment",
+    y = "Proportion",
+    fill = "Survival Status"
+  ) 
+#porpotion of alive and dead seedlings for each treatment
+```
+
+```{r}
+ggplot(Oak_Regression, aes(x = Mean_VWC, y = Mean_Height)) +
+  geom_point() +
+  geom_smooth(method = "lm", se = TRUE) +
+  geom_text(x = 14, y = 60,
+            #position of the label for regression equation and Rsq)
+            label = paste(
+              "R-squared =", round(summary(Oak_LM)$r.squared, 3),
+              "\ny =", round(coef(Oak_LM)[2],3),
+              #change to a new line for "y =" & "x + "
+              "x +", round(coef(Oak_LM)[1], 3)))+
+  labs(
+    x = "Mean Soil Moisture (VWC, %)",
+    y = "Mean Seedling Height (cm)",
+    title = "Soil Moisture vs. Seedling Height"
+  ) 
 ```
