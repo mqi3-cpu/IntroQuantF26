@@ -298,6 +298,8 @@ There are a few differences in reporting LMER - you don't have to discuss the ra
 summary(AllSiteModel_LocnoInt_rSite)
 library(sjPlot)
 plot_model(AllSiteModel_LocnoInt_rSite) + geom_hline(aes(yintercept = 0), linetype = "dotted")
+
+
 ```
 
 If the fixed effect estimate is greater than 0, and the standard error bars don't overlap zero, you can be confident that there is a positive relationship for that variable. (and vice versa for a negative relationship).
