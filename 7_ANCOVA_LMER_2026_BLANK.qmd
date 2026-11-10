@@ -14,16 +14,16 @@ In our owl limpet model, we know that territory size scales with body mass, but 
 
 ```{r}
 install.packages("cAIC4")
-install.packages("")
-install.packages("")
-install.packages("")
+install.packages("kableExtra")
+install.packages("lmerTest")
+install.packages("sjPlot")
 
 library(tidyverse)
-library()
-library()
-library()
+library(lme4)
+library(lmerTest)
+library(car)
 
-load(file = )
+load(file = "Demo Data Files/CleanOwlLimpet_Data2023.Rdata")
 ```
 
 ### Regression Review: Basic Linear Model
@@ -82,9 +82,9 @@ Hmm, it looks like it did, but this doesn't tell us much. A better approach is t
 #### ANCOVA: Does the linear relationship between mass and territory area differ by location within the site?
 
 ```{r}
-TCModel_ANCOVA_withInt <- lm()
+TCModel_ANCOVA_withInt <- lm(log(area_mm2) ~ log(mass_g) * location, data = TC_Terr2023)
 
-summary()
+summary(TCModel_ANCOVA_withInt)
 ```
 
 These results mean:
@@ -98,20 +98,20 @@ These results mean:
 Looking at the plot, this makes sense!
 
 ```{r}
- |>
+TC_Terr2023 |>
   ggplot() + 
-  aes(), color = ) + 
+  aes(x=log(mass_g), y=log(area_mm2), color = location) + 
   geom_point() + 
-  geom_smooth() 
+  geom_smooth(method = "lm", se = FALSE) 
 
 ```
 
 Since there was not a significant interaction, we should remove that from the model.
 
 ```{r}
-TCModel_noInt <- lm()
+TCModel_noInt <- lm(log(area_mm2) ~ log(mass_g) + location, data = TC_Terr2023)
 
-summary()
+summary(TCModel_noInt)
 ```
 
 The difference between locations is significant now! What's up with that?
@@ -125,7 +125,7 @@ Different ways of formulating the model or computing the outputs alters the way 
 
 ```{r}
         # how to get results of Type I SS
-        anova()
+        anova(TCModel_ANCOVA_withInt)
 ```
 
 - **Type II** Sum of Squares adjusts variable for main effects, but not for interactions.
@@ -133,7 +133,7 @@ Different ways of formulating the model or computing the outputs alters the way 
 
 ```{r}
         # how to get results of Type II SS
-        Anova(, type = )
+        car::Anova(TCModel_ANCOVA_withInt, type = "II")
 ```
 
 - **Type III** Sum of Squares gives you the result of when each variable is adjusted for the effect of all other variables; the main effects will be adjusted if there is an interaction specified.
@@ -141,10 +141,10 @@ Different ways of formulating the model or computing the outputs alters the way 
 
 ```{r}
         # how to get results of Type III SS
-        car::
+        car::Anova(TCModel_ANCOVA_withInt, type = "III")
         
         # Gives same p-values as summary(lm())
-        summary()
+        summary(lm(TCModel_ANCOVA_withInt))
 ```
 
 Since the interaction in this model was not significant, and we do not have equal sampling between our two locations, we should report the results of the Type II Sum of Squares.
@@ -160,13 +160,13 @@ The Akaike Information Criterion (AIC) is a valuable tool for comparing models f
 Which of the model formulations that we tried above is the best fit model?
 
 ```{r}
-AIC() |> 
+AIC(TCModel_linear, TCModel_massANOVA, TCModel_ANCOVA_withInt, TCModel_noInt, TCModel_areaANOVA) 
 ```
 
 Our best model has the lowest AIC score.
 
 ```{r}
-summary()
+summary(TCModel_noInt)
 ```
 
 ## Mixed-Effects Models
@@ -174,8 +174,8 @@ summary()
 Even though this model is a lot better than just a raw linear model without covariates, we're still missing a lot of variation and structure in our data that we ought to account for in our model. There is significant structure in our data! We have three sites and two locations within each site.
 
 ```{r}
-AllSiteModel_linear <- lm( , data = )
-summary()
+AllSiteModel_linear <- lm(log(area_mm2) ~ log(mass_g), data = All_Terr_Data)
+summary(AllSiteModel_linear)
 ```
 
 If we incorporate site with interactions (TC, CDM, Fenberg), we get this model:
@@ -216,8 +216,8 @@ This output looks very different! Instead of a table of coefficients, we get a t
 What if we add location within a site?
 
 ```{r}
-AllSiteModel_LocInt_randSite <- lmer()
-summary()
+AllSiteModel_LocInt_randSite <- lmer(log(area_mm2) ~ log(mass_g) * (1|site), data = All_Terr_Data)
+summary(AllSiteModel_LocInt_randSite)
 ```
 
 The interaction is significant, so we'll drop it for a better model:
@@ -248,26 +248,30 @@ For the sake of demonstrating how these could be coded, let's assume we're no lo
 
 ```{r}
 # location nested uniquely within site
-AllSiteModel_randNest <- lmer( data = )
+AllSiteModel_randNest <- lmer(log(area_mm2) ~ log(mass_g) + (1|site) + (1|location:site), data = All_Terr_Data)
 
 # location replicated under site
-AllSiteModel_randRep <- lmer()
+AllSiteModel_randRep <- lmer(log(area_mm2) ~ log(mass_g) + (1|site) + (1|location), data = All_Terr_Data)
 
 ```
 
-`AllSiteModel_randNest` is the more accurate model here, since the far and near at each site do have something in common with each other - distance from the access point/impact.
+`AllSiteModel_randRep` is the more accurate model here, since the far and near at each site do have something in common with each other - distance from the access point/impact.
 
 That means our best model is probably `AllSiteModel_LocnoInt_rSite` - where we had location as a fixed effect only and a random effect of site. Let's use AIC to confirm by calculating AIC scores for all the models that reflect the relationship we want to test for (that is, excluding the two `lmer` models with random effects of location).
 
 The best model will have the lowest AIC score and the fewest parameters. We can't compare across our `lm()` vs. `lmer()` models.
 
 ```{r}
-library()
+library(cAIC4)
 # AIC can only compare within lm() models:
-AIC()
+AIC(AllSiteModel_linear, AllSiteModel_ANCOVA_withInt, AllSiteModel_ANCOVA_noInt)
 
 # To run AIC on lmer, it needs an adjustment using the cAIC function from the cAIC4 package:
-cAIC()
+cAIC(AllSiteModel_site_random)
+
+c(cAIC(AllSiteModel_site_random)$caic,
+  cAIC(AllSiteModel_LocInt_randSite)$caic,
+  cAIC(AllSiteModel_LocnoInt_rSite)$caic)
 
 
 summary()
@@ -295,4 +299,4 @@ library()
 plot_model() + geom_hline(), linetype = )
 ```
 
-If the fixed effect estimate is greater than 0, and the standard error bars don't overlap zero, you can be confident that there is a positive relationship for that variable. (and vice versa for a negative relationship).
+If the fixed effect estimate is greater than 0, and the standard error bars don't overlap zero, you can be confident that there is a positive relationship for that variable. (and vice versa for a negative relationship).l
