@@ -1,0 +1,170 @@
+---
+title: "Rough Draft Oaks Project Analysis"
+format: html
+editor: visual
+---
+
+## Quarto
+
+Quarto enables you to weave together content and executable code into a finished document. To learn more about Quarto see <https://quarto.org>.
+
+## 1. Packages and Data Import
+
+```{r}
+#Load packages
+library(tidyverse)
+library(readxl)
+```
+
+```{r}
+#Read the Drosophila population data
+fly_raw <- read_excel("22044appendix_pages1-2 copy.xlsx",
+                      sheet = "Table S1")
+#Check names of the columns
+names(fly_raw)
+
+#Clean population names and prepare variables
+fly_data <- fly_raw |>
+  mutate(
+    Population_Type = str_remove(Population, "[0-9]+"),
+    Survival_h = as.numeric(Survival_during_Starvation_h),
+    Lipid_Content = as.numeric(`Lipid_Content_mg/fly`)
+    #R may process "/" as division sign. Use ``
+  )
+
+#Select populations relevant to this analysis
+lab_populations <- c("ACO", "AO", "B", "BO", "CO", "nCO", "SCOA", "SCOB")
+fly_data <- fly_data |> 
+  filter(Population_Type %in% lab_population)
+
+fly_data
+# The analysis focuses on eight population types: ACO, AO, B, BO, CO, nCO, SCOA, and SCOB. These populations were selected based on the scope of the laboratory project. TSO and TDO were not included in this analysis.
+```
+
+## 2. Summary Table and Data Cleaning
+
+```{r}
+#Summary table for starvation resistance
+fly_data |>
+  group_by(Population_Type) |>
+  summarise(
+    n = sum(!is.na(Survival_h)),
+    Mean_Survival = mean(Survival_h, na.rm = TRUE),
+    SD_Survival = sd(Survival_h, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+```{r}
+#Summary table for lipid content
+fly_data |>
+  group_by(Population_Type) |>
+  summarise(
+    n = sum(!is.na(Lipid_Content)),
+    Mean_Lipid = mean(Lipid_Content, na.rm = TRUE),
+    SD_Lipid = sd(Lipid_Content, na.rm = TRUE),
+    .groups = "drop"
+  )
+```
+
+## 3. ANOVA
+
+Question:
+
+Do different Drosophila populations differ in their resistance to starvation?
+
+- Null hypothesis: Mean starvation resistance does not differ among populations.
+
+- Alternative hypothesis: At least one population has a different mean starvation resistance.
+
+```{r}
+#Run one-way ANOVA
+star_aov <- aov(Survival_h ~ Population_Type, data = fly_data)
+anova(star_aov)
+
+#Diagnostic plots
+plot(star_aov)
+# The Q-Q plot also showed deviations at both tails.
+
+#Check normality of residuals
+shapiro.test(residuals(star_aov))
+#The Shapiro-Wilk test indicated that the residuals deviated significantly from normality (W = 0.907, p = 0.0032).
+
+# Check homogeneity of variances
+bartlett.test(Survival_h ~ Population_Type, data = fly_data)
+#Bartlett's test indicated unequal variances among population types (K-squared = 37.131, df = 7, p < 0.001).
+
+#The normality and homogeneity of variance assumptions were not satisfied. The ANOVA results should be interpreted with caution.
+
+# Post-hoc comparisons
+TukeyHSD(star_aov)
+#Tukey's HSD showed that SCOA and SCOB had significantly higher starvation resistance than all other population types, but did not differ significantly from each other. This is consistent with their selection history involving repeated starvation exposure before reproduction.
+#ACO and AO also differed significantly from CO. This may be related to differences in their selection regimes and generation cycles.
+#nCO did not differ significantly from CO or ACO/AO. One possible explanation is that nCO has experienced fewer generations of selection than CO, although this requires further investigation.
+
+summary(star_aov)
+```
+
+```{r}
+#Boxplot of starvation resistance among population types
+ggplot(fly_data, aes(x = Population_Type, y = Survival_h)) +
+  geom_boxplot() +
+  geom_jitter(width = 0.15, alpha = 0.7) +
+  labs(
+    x = "Drosophila Population Type",
+    y = "Survival during Starvation (hours)",
+    title = "Starvation Resistance among Drosophila Populations"
+  ) 
+```
+
+## 4. Regression
+
+Question:
+
+Is there a positive relationship between lipid content and starvation resistance among Drosophila populations?
+
+- Null hypothesis: There is no linear relationship between lipid content and starvation resistance.
+
+- Alternative hypothesis: There is a positive linear relationship between lipid content and starvation resistance.
+
+```{r}
+#Fit linear regression model
+star_lm <- lm(Survival_h ~ Lipid_Content, data = fly_data)
+summary(star_lm)
+#Lipid content showed a strong positive relationship with starvation survival (slope = 912.44, SE = 60.24, t = 15.15, p < 0.001).
+#The model explained approximately 85.8% of the variation in starvation survival (R-squared = 0.858).
+
+#Check normality of residuals
+shapiro.test(residuals(star_lm))
+#The Shapiro-Wilk test did not detect a significant deviation from normality in the residuals (W = 0.959, p = 0.149).
+
+#Diagnostic plots
+plot(star_lm)
+#The Q-Q plot showed some deviations from the reference line, particularly in the tails.
+
+#calculating regression coefficients
+coef(star_lm)[2] #slope
+coef(star_lm)[1] #y-intercept
+
+
+#Populations with higher lipid content tended to have longer starvation survival.
+# SCOA and SCOB showed notably higher lipid content and starvation survival than the other population types. This pattern may be associated with differences in selection history and physiological traits.
+# However, the overall relationship may partly reflect differences among population types rather than variation within each population type.
+```
+
+```{r}
+#Scatterplot with regression line
+ggplot(fly_data, aes(x = Lipid_Content, y = Survival_h)) +
+  geom_point(size = 2) +
+  geom_smooth(method = "lm", se = TRUE) +
+  geom_text(x = 0.04, y = 170,
+            label = paste(
+              "R-squared =", round(summary(star_lm)$r.squared, 3),
+              "\ny =", round(coef(star_lm)[2],3),
+              "x +", round(coef(star_lm)[1], 3))) +
+  labs(
+    x = "Lipid Content (mg/fly)",
+    y = "Survival during Starvation (hours)",
+    title = "Relationship between Lipid Content and Starvation Resistance"
+  )
+```
