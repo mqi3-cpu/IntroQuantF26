@@ -35,8 +35,14 @@ fly_data <- fly_raw |>
 #Select populations relevant to this analysis
 lab_populations <- c("ACO", "AO", "B", "BO", "CO", "nCO", "SCOA", "SCOB")
 fly_data <- fly_data |> 
-  filter(Population_Type %in% lab_population)
+  filter(Population_Type %in% lab_populations) 
 
+#data<- fly_raw |> 
+#  separate(Population, 
+#           into = c("text", "num"), 
+#           sep = "(?<=[A-Za-z])(?=[0-9])" ) 
+# Another way to separate secection regime and replicates
+#data
 fly_data
 # The analysis focuses on eight population types: ACO, AO, B, BO, CO, nCO, SCOA, and SCOB. These populations were selected based on the scope of the laboratory project. TSO and TDO were not included in this analysis.
 ```
@@ -53,6 +59,8 @@ fly_data |>
     SD_Survival = sd(Survival_h, na.rm = TRUE),
     .groups = "drop"
   )
+
+#separate()
 ```
 
 ```{r}
@@ -168,3 +176,13 @@ ggplot(fly_data, aes(x = Lipid_Content, y = Survival_h)) +
     title = "Relationship between Lipid Content and Starvation Resistance"
   )
 ```
+
+statistical method
+
+result section
+
+graph caption
+
+some discussion for analying result
+
+anotation
